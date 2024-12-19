@@ -1,0 +1,19 @@
+FROM postgres:12
+
+RUN apt-get update && \
+    apt-get install -y pgbackrest openssh-server sudo && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/* && \
+    mkdir /run/sshd && \
+    chmod 0755 /run/sshd && \
+    passwd -d root && \
+    passwd -d postgres && \
+    sed -i 's/#PermitRootLogin prohibit-password/PermitRootLogin yes/' /etc/ssh/sshd_config && \
+    sed -i 's/#PermitEmptyPasswords no/PermitEmptyPasswords yes/' /etc/ssh/sshd_config && \
+    sed -i 's/#ListenAddress 0.0.0.0/ListenAddress 0.0.0.0/' /etc/ssh/sshd_config && \
+    sed -i 's/#Port 22/Port 22/' /etc/ssh/sshd_config && \
+    echo "postgres   ALL = (ALL) NOPASSWD:ALL" >> /etc/sudoers
+
+COPY init.sh /usr/local/bin/
+
+ENTRYPOINT ["init.sh"]

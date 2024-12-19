@@ -1,0 +1,53 @@
+services:
+  postgres:
+#    image: postgres:12
+    build:
+      context: .
+      dockerfile: Dockerfile.postgres
+    restart: always
+    ports:
+      - '127.0.0.1:5435:5432'
+    volumes:
+      - ./data/postgres:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_DB=demo
+      - POSTGRES_USER=postgres
+      # Please provide your own password.
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - PGBACKREST_REPO1_PATH=/tmp
+#      - PGBACKREST_REPO1_S3_BUCKET=demo-db
+#      - PGBACKREST_REPO1_S3_ENDPOINT=localhost:9002
+#      - PGBACKREST_REPO1_S3_KEY=${AWS_ACCESS_KEY_ID}
+#      - PGBACKREST_REPO1_S3_KEY_SECRET=${AWS_SECRET_ACCESS_KEY}
+#      - PGBACKREST_REPO1_S3_REGION=us-east-1
+      - PGBACKREST_REPO1_RETENTION_FULL=2
+      - PGBACKREST_PG1_PATH=/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -d demo -U postgres" ]
+      interval: 5s
+      timeout: 60s
+      retries: 10
+      start_period: 5s
+
+  pgbackrest:
+    build:
+      context: .
+      dockerfile: Dockerfile.pgbackrest
+    environment:
+      - PGBACKREST_REPO1_PATH=/tmp
+#      - PGBACKREST_REPO1_S3_BUCKET=demo-db
+#      - PGBACKREST_REPO1_S3_ENDPOINT=localhost:9002
+#      - PGBACKREST_REPO1_S3_KEY=${AWS_ACCESS_KEY_ID}
+#      - PGBACKREST_REPO1_S3_KEY_SECRET=${AWS_SECRET_ACCESS_KEY}
+#      - PGBACKREST_REPO1_S3_REGION=us-east-1
+      - PGBACKREST_REPO1_RETENTION_FULL=2
+      - PGBACKREST_PG1_PATH=/var/lib/postgresql/data
+      - PGBACKREST_PG1_HOST=postgres
+      - PGBACKREST_PG1_PORT=5432
+      - PGBACKREST_PG1_USER=postgres
+    volumes:
+      - ./data/pgbackrest:/var/lib/pgbackrest
+#    command: ["tail", "-f", "/dev/null"]
+    entrypoint: ["sh", "-c", "pgbackrest --stanza=demo stanza-create && while true; do pgbackrest --stanza=demo --type=incr backup; sleep 60; done"]
+    depends_on:
+      - postgres
